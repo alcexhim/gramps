@@ -42,7 +42,6 @@ import pickle
 from gi.repository import Gtk
 from gi.repository import Gdk
 from gi.repository import Pango
-from gi.repository.GLib import markup_escape_text
 
 #-------------------------------------------------------------------------
 #
@@ -59,6 +58,8 @@ from gramps.gen.lib import NoteType, Person, Surname
 from gramps.gen.db import DbTxn
 from .. import widgets
 from gramps.gen.display.name import displayer as name_displayer
+from gramps.gen.lib.date import Date, Today
+from gramps.gen.datehandler import displayer as date_displayer
 from gramps.gen.errors import WindowActiveError
 from ..glade import Glade
 from ..ddtargets import DdTargets
@@ -78,6 +79,8 @@ from .displaytabs import (PersonEventEmbedList, NameEmbedList, CitationEmbedList
 from gramps.gen.plug import CATEGORY_QR_PERSON
 from gramps.gen.const import URL_MANUAL_SECT1
 from gramps.gen.utils.id import create_id
+
+from datetime import date
 
 #-------------------------------------------------------------------------
 #
@@ -240,7 +243,7 @@ class EditPerson(EditPrimary):
         self.define_ok_button(self.top.get_object("ok"), self.save)
         self.define_help_button(self.top.get_object("button134"),
                 WIKI_HELP_PAGE,
-                _('Editing_information_about_people', 'manual'))
+                _('manual|Editing_information_about_people'))
 
         self.given.connect("focus-out-event", self._given_focus_out_event)
         self.top.get_object("editnamebtn").connect("clicked",
@@ -436,9 +439,27 @@ class EditPerson(EditPrimary):
             obj.connect('changed', self._changed_name)
 
         self.preview_name = self.top.get_object("full_name")
+        self.preview_name.override_font(Pango.FontDescription('sans bold 12'))
         self.surntab = SurnameTab(self.dbstate, self.uistate, self.track,
                                   self.obj.get_primary_name(),
                                   on_change=self._changed_name)
+
+# BEGIN: Added by Michael J Becker 2020-09-23 02:25:48 -0500 >>> _setup_fields(self)
+        self.age_label = self.top.get_object("age_label")
+        self.age_label.set_label("Age: %s" % self.get_age())
+        
+    def get_age(self):
+        """
+        Get the age of the person formatted as a string, if possible.
+        """
+        age_precision = config.get('preferences.age-display-precision')
+        thedate = Today()
+        if thedate and self.get_start_date():
+            return (thedate - self.get_start_date()).format(precision=age_precision)
+        else:
+            return ""
+
+# END: Added by Michael J Becker 2020-09-23 02:25:48 -0500 <<< get_start_date(self)
 
     def get_start_date(self):
         """
@@ -550,9 +571,7 @@ class EditPerson(EditPrimary):
         Update the window title, and default name in name tab
         """
         self.update_title(self.get_menu_title())
-        self.preview_name.set_markup(
-            "<span size='x-large' weight='bold'>%s</span>" %
-            markup_escape_text(self.get_preview_name(), -1))
+        self.preview_name.set_text(self.get_preview_name())
         self.name_list.update_defname()
 
     def name_callback(self):
@@ -640,6 +659,7 @@ class EditPerson(EditPrimary):
         """
         self.imgmenu = Gtk.Menu()
         menu = self.imgmenu
+        menu.set_title(_("Media Object"))
         obj = self.db.get_media_from_handle(photo.get_reference_handle())
         if obj:
             add_menuitem(menu, _("View"), photo,
@@ -1087,9 +1107,9 @@ class EditPerson(EditPrimary):
 class GenderDialog(Gtk.MessageDialog):
     def __init__(self, parent=None):
         Gtk.MessageDialog.__init__(self,
-                                   transient_for=parent,
-                                   modal=True,
-                                   message_type=Gtk.MessageType.QUESTION,
+                                parent,
+                                flags=Gtk.DialogFlags.MODAL,
+                                type=Gtk.MessageType.QUESTION,
                                    )
         self.set_icon(ICON)
         self.set_title('')

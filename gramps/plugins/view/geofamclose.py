@@ -203,7 +203,6 @@ class GeoFamClose(GeoGraphyView):
         ('geography.center-lat', 0.0),
         ('geography.center-lon', 0.0),
         ('geography.use-keypad', True),
-        ('geography.personal-map', ""),
 
         ('geography.map_service', constants.OPENSTREETMAP),
         ('geography.max_places', 5000),
@@ -244,6 +243,13 @@ class GeoFamClose(GeoGraphyView):
         self.cal = config.get('preferences.calendar-format-report')
         self.no_show_places_in_status_bar = False
         self.config_meeting_slider = None
+        self.dbstate.connect('database-changed', self.reset_change_db)
+
+    def reset_change_db(self, dummy_dbase):
+        """
+        Used to reset the family reference
+        """
+        self.reffamily = None
 
     def get_title(self):
         """
@@ -380,6 +386,15 @@ class GeoFamClose(GeoGraphyView):
         select_family = SelectorFactory('Family')
         sel = select_family(self.dbstate, self.uistate)
         self.reffamily = sel.run()
+        self.goto_handle(None)
+
+    def select_family2(self, *obj):
+        """
+        Open a selection box to choose the secondary family.
+        """
+        select_family = SelectorFactory('Family')
+        sel = select_family(self.dbstate, self.uistate)
+        self.uistate.set_active(sel.run().get_handle(), 'Family')
         self.goto_handle(None)
 
     def build_tree(self):
@@ -759,6 +774,7 @@ class GeoFamClose(GeoGraphyView):
         """
         self.menu = Gtk.Menu()
         menu = self.menu
+        menu.set_title("family")
         events = []
         message = ""
         oldplace = ""
@@ -802,6 +818,7 @@ class GeoFamClose(GeoGraphyView):
                     menu.append(add_item)
                     self.itemoption = Gtk.Menu()
                     itemoption = self.itemoption
+                    itemoption.set_title(message)
                     itemoption.show()
                     add_item.set_submenu(itemoption)
                     modify = Gtk.MenuItem(label=_("Edit Event"))
@@ -829,6 +846,12 @@ class GeoFamClose(GeoGraphyView):
         add_item = Gtk.MenuItem(
                         label=_("Choose and bookmark the new reference family"))
         add_item.connect("activate", self.select_family)
+        add_item.show()
+        menu.append(add_item)
+        
+        add_item = Gtk.MenuItem(
+                        label=_("Choose the new active family"))
+        add_item.connect("activate", self.select_family2)
         add_item.show()
         menu.append(add_item)
         return

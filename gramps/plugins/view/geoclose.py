@@ -204,7 +204,6 @@ class GeoClose(GeoGraphyView):
         ('geography.center-lat', 0.0),
         ('geography.center-lon', 0.0),
         ('geography.use-keypad', True),
-        ('geography.personal-map', ""),
 
         ('geography.map_service', constants.OPENSTREETMAP),
         ('geography.max_places', 5000),
@@ -247,6 +246,14 @@ class GeoClose(GeoGraphyView):
         self.add_item = None
         self.newmenu = None
         self.config_meeting_slider = None
+        self.dbstate.connect('database-changed', self.reset_change_db)
+
+    def reset_change_db(self, dummy_dbase):
+        """
+        Used to reset the family reference
+        """
+        self.refperson = None
+
 
     def get_title(self):
         """
@@ -386,6 +393,17 @@ class GeoClose(GeoGraphyView):
                            _("Select the person which will be our reference."),
                            skip=self.skip_list)
         self.refperson = sel.run()
+        self.goto_handle(None)
+        
+    def select_person2(self, *obj):
+        """
+        Open a selection box to choose the secondary person.
+        """
+        selectperson = SelectorFactory('Person')
+        sel = selectperson(self.dbstate, self.uistate, self.track,
+                           _("Select the person which will be our active."),
+                           skip=self.skip_list)
+        self.uistate.set_active(sel.run().get_handle(), 'Person')
         self.goto_handle(None)
 
     def build_tree(self):
@@ -569,6 +587,7 @@ class GeoClose(GeoGraphyView):
         """
         self.newmenu = Gtk.Menu()
         menu = self.newmenu
+        menu.set_title("person")
         events = []
         message = ""
         oldplace = ""
@@ -613,6 +632,7 @@ class GeoClose(GeoGraphyView):
                     menu.append(add_item)
                     self.itemoption = Gtk.Menu()
                     itemoption = self.itemoption
+                    itemoption.set_title(message)
                     itemoption.show()
                     add_item.set_submenu(itemoption)
                     modify = Gtk.MenuItem(label=_("Edit Event"))
@@ -640,6 +660,12 @@ class GeoClose(GeoGraphyView):
         add_item = Gtk.MenuItem(
                         label=_("Choose and bookmark the new reference person"))
         add_item.connect("activate", self.select_person)
+        add_item.show()
+        menu.append(add_item)
+        
+        add_item = Gtk.MenuItem(
+                        label=_("Choose the new active person"))
+        add_item.connect("activate", self.select_person2)
         add_item.show()
         menu.append(add_item)
         return

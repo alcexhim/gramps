@@ -82,6 +82,9 @@ from gramps.gen.utils.id import create_id
 from gramps.gen.const import URL_MANUAL_SECT1
 from ..dbguielement import DbGUIElement
 
+from gramps.gen.utils.file import media_path_full
+from gramps.gui.widgets import Photo
+
 #-------------------------------------------------------------------------
 #
 # Constants
@@ -589,6 +592,9 @@ class EditFamily(EditPrimary):
 
         self.mname = self.top.get_object('mname')
         self.fname = self.top.get_object('fname')
+        
+        self.mimg = self.top.get_object('mimg')
+        self.fimg = self.top.get_object('fimg')
 
         self.mbutton_index = self.top.get_object('mbutton_index')
         self.mbutton_add = self.top.get_object('mbutton_add')
@@ -803,7 +809,7 @@ class EditFamily(EditPrimary):
         self.top.get_object('vbox').pack_start(notebook, True, True, 0)
 
     def update_father(self, handle):
-        self.load_parent(handle, self.fname, self.fbirth, self.fbirth_label,
+        self.load_parent(handle, self.fname, self.fimg, self.fbirth, self.fbirth_label,
                          self.fdeath, self.fdeath_label,
                          self.fbutton_index, self.fbutton_add,
                          self.fbutton_del, self.fbutton_edit)
@@ -813,7 +819,7 @@ class EditFamily(EditPrimary):
                                         self.on_drag_fatherdata_received)
 
     def update_mother(self, handle):
-        self.load_parent(handle, self.mname, self.mbirth, self.mbirth_label,
+        self.load_parent(handle, self.mname, self.mimg, self.mbirth, self.mbirth_label,
                          self.mdeath, self.mdeath_label,
                          self.mbutton_index, self.mbutton_add,
                          self.mbutton_del, self.mbutton_edit)
@@ -975,7 +981,7 @@ class EditFamily(EditPrimary):
             except WindowActiveError:
                 pass
 
-    def load_parent(self, handle, name_obj, birth_obj, birth_label, death_obj,
+    def load_parent(self, handle, name_obj, img_obj, birth_obj, birth_label, death_obj,
                     death_label, btn_index, btn_add, btn_del, btn_edit):
         # is a parent used here:
         is_used = handle is not None
@@ -1006,6 +1012,9 @@ class EditFamily(EditPrimary):
             btn_add.hide()
             btn_del.show()
             btn_edit.show()
+            
+            if img_obj:
+                load_person_image(self, person, img_obj)
         else:
             name = ""
             birth = None
@@ -1281,3 +1290,37 @@ def button_activated(event, mouse_button):
         return True
     else:
         return False
+        
+def destroy_cb(widget, data):
+    """
+    Callback for gtk_container_foreach
+    """
+    widget.destroy()
+
+def load_person_image(self, person, photo_container):
+    """
+    Load the primary image if it exists.
+    """
+    photo = Photo(True)
+    photo.show()
+
+    photo_container.foreach(destroy_cb, None)
+    photo_container.add(photo)
+    
+    media_list = person.get_media_list()
+    if media_list:
+        media_ref = media_list[0]
+        object_handle = media_ref.get_reference_handle()
+        obj = self.dbstate.db.get_media_from_handle(object_handle)
+        full_path = media_path_full(self.dbstate.db, obj.get_path())
+        mime_type = obj.get_mime_type()
+        if mime_type and mime_type.startswith("image"):
+            photo.set_image(full_path, mime_type, media_ref.get_rectangle())
+            photo.set_uistate(self.uistate, object_handle)
+        else:
+            photo.set_image(None)
+            photo.set_uistate(None, None)
+    else:
+        photo.set_image(None)
+        photo.set_uistate(None, None)
+

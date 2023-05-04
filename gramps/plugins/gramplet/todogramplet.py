@@ -44,11 +44,20 @@ class ToDoGramplet(Gramplet):
     Displays all the To Do notes in the database.
     """
     def init(self):
+        self.note_type = "To Do"
+        self.show_toolbar = True
         self.gui.WIDGET = self.build_gui()
         self.gui.get_container_widget().remove(self.gui.textview)
         self.gui.get_container_widget().add(self.gui.WIDGET)
         self.gui.WIDGET.show()
-
+        
+    def build_options(self):
+        from gramps.gen.plug.menu import StringOption, BooleanOption
+        
+        self.add_option(StringOption(_("Note type"),
+                                     self.note_type))
+        self.add_option(BooleanOption(_("Show toolbar"),
+                                     self.show_toolbar))
     def build_gui(self):
         """
         Build the GUI interface.
@@ -73,6 +82,8 @@ class ToDoGramplet(Gramplet):
         hbox.pack_start(self.new, False, False, 0)
         self.page = Gtk.Label()
         hbox.pack_end(self.page, False, False, 10)
+        
+        self.hbox = hbox
 
         self.title = Gtk.Label(halign=Gtk.Align.START)
         self.title.set_line_wrap(True)
@@ -90,6 +101,23 @@ class ToDoGramplet(Gramplet):
         top.pack_start(scrolledwindow, True, True, 0)
         top.show_all()
         return top
+        
+    def save_options(self):
+        self.note_type = self.get_option(_("Note type")).get_value()
+        self.show_toolbar = self.get_option(_("Show toolbar")).get_value()
+        
+
+    def on_load(self):
+        if len(self.gui.data) == 2:
+            self.note_type = self.gui.data[0]
+            self.show_toolbar = bool(self.gui.data[1])
+
+    def save_update_options(self, widget=None):
+        self.note_type = self.get_option(_("Note type")).get_value()
+        self.show_toolbar = self.get_option(_("Show toolbar")).get_value()
+        self.gui.data = [self.note_type, self.show_toolbar]
+        
+        self.update()
 
     def main(self):
         self.get_notes()
@@ -101,7 +129,7 @@ class ToDoGramplet(Gramplet):
         all_notes = self.dbstate.db.get_note_handles()
         FilterClass = GenericFilterFactory('Note')
         filter = FilterClass()
-        filter.add_rule(rules.note.HasType(["To Do"]))
+        filter.add_rule(rules.note.HasType([self.note_type]))
         note_list = filter.apply(self.dbstate.db, all_notes)
         return note_list
 
@@ -151,6 +179,8 @@ class ToDoGramplet(Gramplet):
         self.page.set_text(_('%(current)d of %(total)d') %
                            {'current': self.current + 1,
                             'total': len(self.note_list)})
+        
+        self.hbox.set_visible(self.show_toolbar)
 
     def left_clicked(self, button):
         """
@@ -200,7 +230,7 @@ class ToDoGramplet(Gramplet):
         """
         from gramps.gui.editors import EditNote
         note = Note()
-        note.set_type(NoteType.TODO)
+        note.set_type(self.note_type)
         try:
             EditNote(self.gui.dbstate, self.gui.uistate, [], note)
         except AttributeError:

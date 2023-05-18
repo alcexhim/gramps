@@ -51,8 +51,9 @@ from gramps.gen.const import THUMBSCALE
 from gramps.gen.mime import get_description, get_type
 from gramps.gen.utils.thumbnails import get_thumbnail_image, find_mime_type_pixbuf
 from gramps.gen.utils.file import (media_path_full, find_file, create_checksum)
-from gramps.gen.lib import NoteType
+from gramps.gen.lib import NoteType, Attribute
 from gramps.gen.db import DbTxn
+from .objectentries import PlaceEntry
 from ..glade import Glade
 from .displaytabs import (CitationEmbedList, MediaAttrEmbedList, MediaBackRefList,
                          NoteTab)
@@ -275,6 +276,13 @@ class EditMediaRef(EditReference):
             self.source.get_date_object(),
             self.uistate, self.track,
             self.db.readonly)
+            
+        self.place = PlaceEntry(self.dbstate, self.uistate, self.track,
+                                      self.top.get_object("place"),
+                                      self.top.get_object("place_event_box"),
+                                      self.set_place_handle,
+                                      self.get_place_handle,
+                                      self.top.get_object("add_del_place"), self.top.get_object("select_place"))
 
         self.tags = MonitoredTagList(
             self.top.get_object("tag_label"),
@@ -516,6 +524,23 @@ class EditMediaRef(EditReference):
 
         self._setup_notebook_tabs(notebook_src)
         self._setup_notebook_tabs(notebook_ref)
+        
+    def get_place_handle(self):
+        for attr in self.source.get_attribute_list():
+            if attr.get_type() == "Place":
+                return attr.get_value()
+        return None
+        
+    def set_place_handle(self, value):
+        for attr in self.source.get_attribute_list():
+            if attr.get_type() == "Place":
+                attr.set_value(value)
+                return
+        
+        attr = Attribute()
+        attr.set_type("Place")
+        attr.set_value(value)
+        self.source.get_attribute_list().append(attr)
 
     def save(self,*obj):
 

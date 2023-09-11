@@ -56,6 +56,7 @@ from ..glade import Glade
 from ..ddtargets import DdTargets
 from gi.repository import Gdk
 from gramps.gen.const import URL_MANUAL_SECT1
+from ..display import display_url
 
 #-------------------------------------------------------------------------
 #
@@ -94,6 +95,7 @@ class EditPersonRef(EditSecondary):
         self.setup_configs('interface.person-ref', 600, 350)
 
         self.person_label = self.top.get_object('person')
+        self.person_label.set_use_markup(True)
 
         #allow for drop:
         self.person_label.drag_dest_set(Gtk.DestDefaults.MOTION |
@@ -101,6 +103,7 @@ class EditPersonRef(EditSecondary):
                                         [DdTargets.PERSON_LINK.target()],
                                         Gdk.DragAction.COPY)
         self.person_label.connect('drag_data_received', self.on_drag_persondata_received)
+        self.person_label.connect('activate_link', self.on_person_label_activate_link)
         self._update_dnd_capability()
 
     def _update_dnd_capability(self):
@@ -119,7 +122,8 @@ class EditPersonRef(EditSecondary):
 
         if self.obj.ref:
             p = self.dbstate.db.get_person_from_handle(self.obj.ref)
-            self.person_label.set_text(name_displayer.display(p))
+            self.person_label.set_markup("<a href='gramps://Person/handle/" + p.get_handle() + "'>" + name_displayer.display(p) + "</a>")
+            # self.person_label.set_text(name_displayer.display(p))
 
         self.street = MonitoredEntry(
             self.top.get_object("relationship"),
@@ -166,9 +170,41 @@ class EditPersonRef(EditSecondary):
     def update_person(self, person):
         if person:
             self.obj.ref = person.get_handle()
-            self.person_label.set_text(name_displayer.display(person))
+            self.person_label.set_markup("<a href='gramps://Person/handle/" + person.get_handle() + "'>" + name_displayer.display(person) + "</a>")
         self._update_dnd_capability()
-
+        
+        
+    def find_parent_with_attr(self, attr="dbstate"):
+        """
+        """
+        # Find a parent with attr:
+        obj = self
+        while obj:
+            if hasattr(obj, attr):
+                break
+            obj = obj.get_parent()
+        return obj
+        
+    def on_person_label_activate_link(self, widget, uri):
+        """
+        Handle the standard gtk interface for activate_link.
+        """
+        # this is stupid
+        if uri.startswith("gramps://"):
+            # if in a window:
+            win_obj = self.find_parent_with_attr(attr="dbstate")
+            if win_obj:
+                # Edit the object:
+                obj_class, prop, value = uri[9:].split("/")
+                from ..editors import EditObject
+                EditObject(win_obj.dbstate,
+                           win_obj.uistate,
+                           win_obj.track,
+                           obj_class, prop, value)
+                return
+                
+        display_url(uri)
+    
     def on_drag_persondata_received(self, widget, context, x, y, sel_data,
                                     info, time):
         """
